@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>地理部 伊豆大島フィールドワーク</title>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #00ffff;
+            --bg-dark: #070a12;
+            --card-bg: rgba(13, 22, 38, 0.92);
+            --text-color: #e0e6ed;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(rgba(0, 255, 255, 0.08) 1px, transparent 1px),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" opacity="0.18"><path fill="%2300ffff" d="M850,120 Q880,100 900,130 T880,180 T820,200 Z M780,220 Q830,210 860,250 T820,320 T750,300 Z M740,320 Q780,310 800,350 T760,420 T700,450 T620,500 T580,550 T530,620 T460,680 T390,740 T320,780 T280,820 Z M380,720 Q420,700 440,730 T400,770 Z M280,790 Q320,770 340,810 T290,850 Z M220,830 Q250,820 260,860 T210,880 Z M120,890 Q150,880 160,910 T110,930 Z"/></svg>');
+            background-size: 30px 30px, contain;
+            background-position: center, center;
+            background-repeat: repeat, no-repeat;
+            background-attachment: fixed;
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* オープニングアニメーション */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            animation: fadeOutSplash 0.8s ease 2.5s forwards;
+        }
+
+        .splash-title {
+            font-size: 3.5rem; font-weight: 900; letter-spacing: 8px; color: #fff;
+            text-shadow: 0 0 10px var(--primary-color), 0 0 20px var(--primary-color), 0 0 40px var(--primary-color);
+            opacity: 0; transform: scale(0.8);
+            animation: titleAppear 1.2s ease-out 0.2s forwards;
+        }
+
+        .splash-sub {
+            font-size: 1rem; color: #888; margin-top: 15px; letter-spacing: 3px;
+            opacity: 0; animation: fadeInSub 0.8s ease 1s forwards;
+        }
+
+        @keyframes titleAppear { to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeInSub { to { opacity: 1; } }
+        @keyframes fadeOutSplash { to { opacity: 0; visibility: hidden; } }
+
+        /* ヘッダー */
+        header {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+            background: rgba(7, 10, 18, 0.95); backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.25);
+            z-index: 1000; display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px;
+        }
+
+        .logo { font-size: 1.2rem; font-weight: bold; color: var(--primary-color); text-shadow: 0 0 5px var(--primary-color); }
+
+        .home-btn {
+            background: rgba(0, 255, 255, 0.15); border: 1px solid var(--primary-color);
+            color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: bold;
+            cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 5px;
+        }
+        .home-btn:hover {
+            background: var(--primary-color); color: #000;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
+        }
+
+        /* メインコンテナ */
+        main {
+            margin-top: 60px; padding: 20px 15px; flex: 1;
+            max-width: 900px; width: 100%; margin-left: auto; margin-right: auto;
+        }
+
+        .view-page {
+            display: none; animation: fadeIn 0.4s ease forwards;
+        }
+        .view-page.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            background: var(--card-bg); border-radius: 14px; padding: 22px; margin-bottom: 20px;
+            border: 1px solid rgba(0, 255, 255, 0.18); box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+
+        h2 {
+            border-left: 4px solid var(--primary-color); padding-left: 10px;
+            color: #fff; margin-top: 0; font-size: 1.3rem;
+        }
+
+        .menu-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px; margin-top: 25px;
+        }
+        .large-menu-btn {
+            background: rgba(0, 255, 255, 0.05); border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 12px; padding: 20px; text-align: center; color: #fff;
+            cursor: pointer; transition: all 0.3s; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 10px;
+        }
+        .large-menu-btn:hover {
+            background: rgba(0, 255, 255, 0.2); border-color: var(--primary-color);
+            transform: translateY(-4px); box-shadow: 0 0 18px rgba(0, 255, 255, 0.4);
+        }
+        .large-menu-btn .icon { font-size: 2rem; }
+        .large-menu-btn .title { font-size: 1.1rem; font-weight: bold; color: var(--primary-color); }
+
+        /* スポットカード */
+        .spot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; }
+        .spot-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px; padding: 15px; overflow: hidden;
+        }
+        .spot-card img {
+            width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.2); display: block;
+        }
+        .spot-card h3 { margin: 0 0 8px 0; color: var(--primary-color); font-size: 1.1rem; }
+
+        /* 3Dマップ */
+        #map-container {
+            height: 65vh; width: 100%; border-radius: 10px; overflow: hidden;
+            position: relative; border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        #map { width: 100%; height: 100%; }
+
+        /* フォーム & ボタン */
+        input, textarea, select {
+            width: 100%; padding: 10px; margin-bottom: 12px; background: #0f172a;
+            border: 1px solid #334155; color: #fff; border-radius: 8px; font-size: 0.9rem;
+        }
+        .btn {
+            background: var(--primary-color); color: #000; font-weight: bold; border: none;
+            padding: 12px 18px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 0.95rem;
+        }
+        .btn-danger { background: #ff4757; color: #fff; width: auto; padding: 6px 12px; font-size: 0.8rem; }
+        .btn-warning { background: #e17055; color: #fff; width: 100%; padding: 10px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; border: none; }
+        .admin-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.05); padding: 10px; margin-bottom: 8px; border-radius: 6px;
+        }
+
+        .maplibregl-popup-content { border-radius: 8px; padding: 10px; font-family: sans-serif; color: #333; }
+        .spot-title { font-weight: bold; font-size: 0.95rem; color: #1e293b; margin-bottom: 3px; }
+        .spot-desc { font-size: 0.8rem; color: #475569; }
+    </style>
+</head>
+<body>
+
+<div id="splash-screen">
+    <div class="splash-title">地理部</div>
+    <div class="splash-sub">IZU OSHIMA FIELD WORK</div>
+</div>
+
+<header>
+    <div class="logo">地理部WEB</div>
+    <button class="home-btn" onclick="switchView('home')">ホーム</button>
+</header>
+
+<main>
+    <div id="home" class="view-page active">
+        <div class="card">
+            <h2>地理部 伊豆大島フィールドワークについて</h2>
+            <p id="about-text" style="line-height: 1.7; font-size: 0.95rem;">読み込み中...</p>
+        </div>
+
+        <div class="menu-grid">
+            <div class="large-menu-btn" onclick="switchView('spots')">
+                <span class="icon">📍</span>
+                <span class="title">場所の説明</span>
+            </div>
+            <div class="large-menu-btn" onclick="switchView('map-view')">
+                <span class="icon">🗺️</span>
+                <span class="title">地図で見る伊豆大島 (3D)</span>
+            </div>
+            <div class="large-menu-btn" onclick="switchView('survey')">
+                <span class="icon">📝</span>
+                <span class="title">アンケート(任意ですがご協力お願いいたします。)</span>
+            </div>
+            <div class="large-menu-btn" onclick="openAdminView()">
+                <span class="icon">⚙️</span>
+                <span class="title">管理者画面</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="spots" class="view-page">
+        <div class="card">
+            <h2>調査スポット詳細一覧</h2>
+            <div class="spot-grid" id="spot-list"></div>
+        </div>
+    </div>
+
+    <div id="map-view" class="view-page">
+        <div class="card">
+            <h2>3Dリアルドライブマップ</h2>
+            <p style="font-size:0.8rem; color:#aaa; margin-bottom: 10px;">※ドラッグで移動、2本指スワイプ（右ドラッグ）で3Dアングルを変更できます。</p>
+            <div id="map-container">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="survey" class="view-page">
+        <div class="card">
+            <h2>フィールドワークに関するアンケート</h2>
+            <form id="survey-form" onsubmit="submitSurvey(event)">
+                <div id="survey-questions-container"></div>
+                <button type="submit" class="btn">アンケートを送信する</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin" class="view-page">
+        <div class="card">
+            <h2>🔐 管理者コントロールパネル</h2>
+
+            <h3>1. 管理者パスワードの変更</h3>
+            <input type="password" id="new-pass-input" placeholder="新しいパスワードを入力">
+            <button class="btn" onclick="changePassword()" style="margin-bottom: 25px;">パスワード変更</button>
+
+            <h3>2. 活動概要文の変更</h3>
+            <textarea id="admin-about-input" rows="4"></textarea>
+            <button class="btn" onclick="saveAbout()" style="margin-bottom: 25px;">概要文を保存</button>
+
+            <h3>3. スポットの追加・編集</h3>
+            <input type="text" id="spot-name" placeholder="スポット名 (例: 大島公園)">
+            <input type="text" id="spot-lat" placeholder="緯度 (例: 34.7570)">
+            <input type="text" id="spot-lng" placeholder="経度 (例: 139.4380)">
+            <input type="text" id="spot-img" placeholder="画像ファイル名 (例: miharayama.jpg)">
+            <textarea id="spot-desc" rows="3" placeholder="詳細な説明を入力..."></textarea>
+            <button class="btn" onclick="addOrUpdateSpot()" style="margin-bottom: 15px;">スポットを追加 / 更新</button>
+            <div id="admin-spot-list" style="margin-bottom: 25px;"></div>
+
+            <h3>4. アンケート質問の追加・編集</h3>
+            <label style="font-size: 0.85rem; color:#aaa;">回答形式を選択:</label>
+            <select id="new-q-type" onchange="toggleOptionInput()">
+                <option value="choice">選択式 (ラジオボタン)</option>
+                <option value="text">書き込み式 (自由記述)</option>
+            </select>
+            <input type="text" id="new-q-text" placeholder="質問文 (例: フィールドワークの満足度は？)">
+            <div id="option-input-wrapper">
+                <input type="text" id="new-q-options" placeholder="選択肢 (カンマ区切り 例: 満足,普通,不満)">
+            </div>
+            <button class="btn" onclick="addSurveyQuestion()" style="margin-bottom: 15px;">質問を追加</button>
+            <div id="admin-survey-list" style="margin-bottom: 25px;"></div>
+
+            <h3>5. データリセット (設定が反映されない場合)</h3>
+            <button class="btn-warning" onclick="resetAllData()">データを初期化して最新表示にする</button>
+        </div>
+    </div>
+</main>
+
+<script>
+    const defaultAbout = "地理部は今回、火山の島である「伊豆大島」へフィールドワークに行ってきました！独特な地質や地形、港町の歴史を巡り、伊豆大島一周道路を通って島をまるごと体感してきました。";
+    
+    // スポット初期データ（三原山の画像を miharayama.jpg に設定）
+    const defaultSpots = [
+        { id: 1, name: "三原山", lat: 34.7262, lng: 139.3942, desc: "島のシンボルである活火山。3D表示で火口の凹凸がしっかり見えます。", img: "miharayama.jpg" },
+        { id: 2, name: "大島ふるさと体験館", lat: 34.7578, lng: 139.3565, desc: "椿油絞りや草木染めなど、大島の伝統カルチャーを体験できる施設。", img: "" },
+        { id: 3, name: "波浮港", lat: 34.6865, lng: 139.4235, desc: "火口湖の跡を利用して作られた風情あるノスタルジックな港町。", img: "" },
+        { id: 4, name: "元町港", lat: 34.7530, lng: 139.3520, desc: "伊豆大島の主要な玄関口の一つ。夕暮れ時の景色も美しい拠点です。", img: "" },
+        { id: 5, name: "大島公園", lat: 34.7570, lng: 139.4380, desc: "広大な敷地に動物園や椿園が広がる、自然と触れ合える人気スポット。", img: "" }
+    ];
+
+    const defaultSurvey = [
+        { id: 1, type: "choice", question: "今回のフィールドワークは楽しかったですか？", options: ["とても楽しかった", "楽しかった", "普通", "あまり楽しめなかった"] },
+        { id: 2, type: "text", question: "一番印象に残ったエピソードや感想を教えてください。", options: [] }
+    ];
+
+    let adminPass = localStorage.getItem('geo_pass') || '1234';
+    let aboutData = localStorage.getItem('geo_about') || defaultAbout;
+    let spotsData = JSON.parse(localStorage.getItem('geo_spots')) || defaultSpots;
+    let surveyData = JSON.parse(localStorage.getItem('geo_survey')) || defaultSurvey;
+
+    // 古い形式のデータが残っている場合の自動アップデート
+    if (spotsData.length > 0 && (!spotsData[0].img || spotsData[0].img.includes('PXL_'))) {
+        spotsData = defaultSpots;
+        localStorage.setItem('geo_spots', JSON.stringify(spotsData));
+    }
+
+    let mapInstance = null;
+    let mapMarkers = [];
+
+    function switchView(viewId) {
+        document.querySelectorAll('.view-page').forEach(page => page.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        window.scrollTo(0, 0);
+
+        if (viewId === 'map-view') {
+            setTimeout(() => {
+                if (!mapInstance) initMap();
+                else mapInstance.resize();
+            }, 100);
+        }
+    }
+
+    function renderUI() {
+        document.getElementById('about-text').innerText = aboutData;
+        document.getElementById('admin-about-input').value = aboutData;
+
+        const spotListEl = document.getElementById('spot-list');
+        const adminSpotListEl = document.getElementById('admin-spot-list');
+        spotListEl.innerHTML = ''; adminSpotListEl.innerHTML = '';
+
+        spotsData.forEach(spot => {
+            const imgHtml = spot.img ? `<img src="${spot.img}" alt="${spot.name}">` : '';
+
+            spotListEl.innerHTML += `
+                <div class="spot-card">
+                    ${imgHtml}
+                    <h3>${spot.name}</h3>
+                    <p style="font-size:0.85rem; line-height:1.5; color:#cbd5e1;">${spot.desc}</p>
+                </div>
+            `;
+            adminSpotListEl.innerHTML += `<div class="admin-item"><span><strong>${spot.name}</strong> (${spot.img || '画像なし'})</span><button class="btn btn-danger" onclick="deleteSpot(${spot.id})">削除</button></div>`;
+        });
+
+        const surveyContainer = document.getElementById('survey-questions-container');
+        const adminSurveyList = document.getElementById('admin-survey-list');
+        surveyContainer.innerHTML = ''; adminSurveyList.innerHTML = '';
+
+        surveyData.forEach((q, idx) => {
+            let fieldHtml = '';
+            if (q.type === 'text') {
+                fieldHtml = `<textarea name="q_${q.id}" rows="3" placeholder="回答を入力してください..." required></textarea>`;
+            } else {
+                fieldHtml = q.options.map(opt => `<label style="display:block; margin:6px 0; font-size:0.9rem;"><input type="radio" name="q_${q.id}" value="${opt}" required> ${opt}</label>`).join('');
+            }
+
+            surveyContainer.innerHTML += `<div style="margin-bottom:20px;"><p style="font-weight:bold; margin-bottom:8px;">Q${idx+1}. ${q.question}</p>${fieldHtml}</div>`;
+            adminSurveyList.innerHTML += `<div class="admin-item"><span>Q${idx+1}. ${q.question} (${q.type === 'text' ? '書き込み' : '選択式'})</span><button class="btn btn-danger" onclick="deleteQuestion(${q.id})">削除</button></div>`;
+        });
+
+        if (mapInstance) updateMapMarkers();
+    }
+
+    function initMap() {
+        mapInstance = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    'esri-satellite': {
+                        type: 'raster',
+                        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                        tileSize: 256
+                    },
+                    'terrain-dem': {
+                        type: 'raster-dem',
+                        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+                        encoding: 'terrarium', tileSize: 256
+                    }
+                },
+                layers: [{ id: 'satellite-layer', type: 'raster', source: 'esri-satellite' }],
+                terrain: { source: 'terrain-dem', exaggeration: 1.3 }
+            },
+            center: [139.39, 34.72],
+            zoom: 11, pitch: 55, bearing: -20
+        });
+
+        mapInstance.addControl(new maplibregl.NavigationControl());
+        mapInstance.on('load', () => {
+            updateMapMarkers();
+            loadGlowingRoad();
+        });
+    }
+
+    function updateMapMarkers() {
+        mapMarkers.forEach(m => m.remove());
+        mapMarkers = [];
+
+        spotsData.forEach(spot => {
+            const popup = new maplibregl.Popup({ offset: 25 })
+                .setHTML(`<div class="spot-title">${spot.name}</div><div class="spot-desc">${spot.desc}</div>`);
+
+            const marker = new maplibregl.Marker({ color: '#00ffff' })
+                .setLngLat([parseFloat(spot.lng), parseFloat(spot.lat)])
+                .setPopup(popup)
+                .addTo(mapInstance);
+
+            mapMarkers.push(marker);
+        });
+    }
+
+    function loadGlowingRoad() {
+        const overpassUrl = 'https://overpass-api.de/api/interpreter?data=[out:json];way["ref"="208"](34.65,139.30,34.85,139.48);out geom;';
+
+        fetch(overpassUrl)
+            .then(res => res.json())
+            .then(data => {
+                const features = [];
+                data.elements.forEach(element => {
+                    if (element.geometry) {
+                        const coordinates = element.geometry.map(pt => [pt.lon, pt.lat]);
+                        features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: coordinates } });
+                    }
+                });
+
+                mapInstance.addSource('route-source', { type: 'geojson', data: { type: 'FeatureCollection', features: features } });
+
+                mapInstance.addLayer({
+                    id: 'route-glow', type: 'line', source: 'route-source',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#00ffff', 'line-width': 9, 'line-blur': 5, 'line-opacity': 0.85 }
+                });
+
+                mapInstance.addLayer({
+                    id: 'route-core', type: 'line', source: 'route-source',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#ffffff', 'line-width': 2.5, 'line-opacity': 0.95 }
+                });
+
+                const routePopup = new maplibregl.Popup({ closeButton: false });
+                ['route-glow', 'route-core'].forEach(layerId => {
+                    mapInstance.on('click', layerId, (e) => {
+                        routePopup.setLngLat(e.lngLat)
+                            .setHTML('<b>🚗 伊豆大島一周道路</b><br>ここを通りました！')
+                            .addTo(mapInstance);
+                    });
+                });
+            });
+    }
+
+    function openAdminView() {
+        const inputPass = prompt("管理者パスワードを入力してください:");
+        if (inputPass === adminPass) {
+            alert("認証に成功しました。");
+            switchView('admin');
+        } else if (inputPass !== null) {
+            alert("パスワードが正しくありません。");
+        }
+    }
+
+    function changePassword() {
+        const newPass = document.getElementById('new-pass-input').value;
+        if (newPass.trim() !== "") {
+            adminPass = newPass;
+            localStorage.setItem('geo_pass', adminPass);
+            document.getElementById('new-pass-input').value = "";
+            alert("パスワードを変更しました！");
+        }
+    }
+
+    function saveAbout() {
+        aboutData = document.getElementById('admin-about-input').value;
+        localStorage.setItem('geo_about', aboutData);
+        renderUI();
+        alert("概要文を更新しました！");
+    }
+
+    function addOrUpdateSpot() {
+        const name = document.getElementById('spot-name').value;
+        const lat = parseFloat(document.getElementById('spot-lat').value);
+        const lng = parseFloat(document.getElementById('spot-lng').value);
+        const img = document.getElementById('spot-img').value;
+        const desc = document.getElementById('spot-desc').value;
+
+        if (!name || isNaN(lat) || isNaN(lng)) {
+            alert("正しいスポット名および緯度経度を入力してください。");
+            return;
+        }
+
+        spotsData.push({ id: Date.now(), name, lat, lng, img, desc });
+        localStorage.setItem('geo_spots', JSON.stringify(spotsData));
+        
+        document.getElementById('spot-name').value = '';
+        document.getElementById('spot-lat').value = '';
+        document.getElementById('spot-lng').value = '';
+        document.getElementById('spot-img').value = '';
+        document.getElementById('spot-desc').value = '';
+        renderUI();
+        alert(`${name} を追加しました！`);
+    }
+
+    function deleteSpot(id) {
+        if (confirm("削除しますか？")) {
+            spotsData = spotsData.filter(s => s.id !== id);
+            localStorage.setItem('geo_spots', JSON.stringify(spotsData));
+            renderUI();
+        }
+    }
+
+    function toggleOptionInput() {
+        const qType = document.getElementById('new-q-type').value;
+        document.getElementById('option-input-wrapper').style.display = qType === 'choice' ? 'block' : 'none';
+    }
+
+    function addSurveyQuestion() {
+        const qType = document.getElementById('new-q-type').value;
+        const qText = document.getElementById('new-q-text').value;
+        const qOptionsStr = document.getElementById('new-q-options').value;
+
+        if (!qText) {
+            alert("質問文を入力してください。");
+            return;
+        }
+
+        let options = [];
+        if (qType === 'choice') {
+            if (!qOptionsStr) {
+                alert("選択式の場合はカンマ区切りで選択肢を入力してください。");
+                return;
+            }
+            options = qOptionsStr.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+
+        surveyData.push({ id: Date.now(), type: qType, question: qText, options: options });
+        localStorage.setItem('geo_survey', JSON.stringify(surveyData));
+
+        document.getElementById('new-q-text').value = '';
+        document.getElementById('new-q-options').value = '';
+        renderUI();
+        alert("アンケート質問を追加しました！");
+    }
+
+    function deleteQuestion(id) {
+        if (confirm("この質問を削除しますか？")) {
+            surveyData = surveyData.filter(q => q.id !== id);
+            localStorage.setItem('geo_survey', JSON.stringify(surveyData));
+            renderUI();
+        }
+    }
+
+    function submitSurvey(e) {
+        e.preventDefault();
+        alert("アンケートのご回答ありがとうございました！");
+        document.getElementById('survey-form').reset();
+    }
+
+    function resetAllData() {
+        if (confirm("保存されたデータをすべて初期化しますか？")) {
+            localStorage.clear();
+            aboutData = defaultAbout;
+            spotsData = defaultSpots;
+            surveyData = defaultSurvey;
+            renderUI();
+            alert("データを初期化しました。");
+        }
+    }
+
+    window.onload = () => {
+        renderUI();
+    };
+</script>
+</body>
+</html>
